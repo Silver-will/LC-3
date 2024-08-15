@@ -37,6 +37,16 @@ enum Operations
     OP_TRAP    /* execute trap */
 };
 
+enum TRAP_CODES
+{
+    TRAP_GETC = 0x20,  /* get character from keyboard, not echoed onto the terminal */
+    TRAP_OUT = 0x21,   /* output a character */
+    TRAP_PUTS = 0x22,  /* output a word string */
+    TRAP_IN = 0x23,    /* get character from keyboard, echoed onto the terminal */
+    TRAP_PUTSP = 0x24, /* output a byte string */
+    TRAP_HALT = 0x25   /* halt the program */
+};
+
 enum
 {
     FL_POS = 1 << 0, /* P */
@@ -66,13 +76,43 @@ fn main() {
 
         match op
         {
-            OP_ADD => ,
+            OP_ADD => 
+            let r0: u16 = (instr >> 9) & 0x7;
+            let r1: u16 = (instr >> 6) & 0x7;
+            let imm_flag: u16 = (instr >> 5) & 0x1;
+            if(imm_flag)
+            {
+                let imm5: u16 = sign_extend(instr & 0x1F, 5);
+                reg[r0] = reg[r1] + imm5;
+            }
+            
+            else
+            {
+                let r2: u16 = instr & 0x7;
+                reg[r0] = reg[r1] + reg[r2];
+            }
+            update_flags(r0);
+            ,
             OP_AND =>
-                @{AND}
-                break;
+            let r0: u16 = (instr >> 9) & 0x7;
+            let r1: u16 = (instr >> 6) & 0x7;
+            let imm_flag: u16 = (instr >> 5) & 0x1;
+            if(imm_flag)
+            {
+                let imm5: u16 = sign_extend(instr & 0x1F, 5);
+                reg[r0] = reg[r1] & imm5;
+            }
+            else
+            {
+                let r2: u16 = instr & 0x7;
+                reg[r0] = reg[r1] & reg[r2];
+            }
+            update_flags(r0);
+            ,
             OP_NOT =>
-                @{NOT}
-                break;
+               let r0: u16 = (instr >> 9) & 0x7;
+               let sr: u16 = (instr >> 6) & 0x7;
+               reg
             OP_BR =>
                 @{BR}
                 break;
@@ -83,17 +123,31 @@ fn main() {
                 @{JSR}
                 break;
             OP_LD =>
-                @{LD}
-                break;
+
+            let r0: u16 = (instr >>  9) & 0x7;
+            let pc_offset: u16 = sign_extend(instr & 0x1FF,9);
+            reg[r0] = mem_read(reg[R_PC] + pc_offset);
+            update_flags(r0);
+            ,
             OP_LDI =>
-                @{LDI}
-                break;
+               let r0: u16 = (instr >>  9) & 0x7;
+               let pc_offset: u16 = sign_extend(instr & 0x1FF,9);
+               reg[r0] = mem_read(mem_read(reg[R_PC] + pc_offset));
+               update_flags(r0);
+            ,
             OP_LDR =>
-                @{LDR}
-                break;
+            let r0: u16 = (instr >>  9) & 0x7;
+            let offset6: u16 = sign_extend(instr & 0x1FF,6);
+            let base_r: u16 = (instr >> 6) & 0x7;
+            reg[r0] = mem_read(base_r + offset6);
+            update_flags(r0);
+            ,
             OP_LEA =>
-                @{LEA}
-                break;
+            let r0: u16 = (instr >>  9) & 0x7;
+            let pc_offset: u16 = sign_extend(instr & 0x1FF,9);
+            reg[r0] = reg[R_PC] + pc_offset;
+            update_flags(r0);
+            ,
             OP_ST =>
                 @{ST}
                 break;
@@ -106,4 +160,29 @@ fn main() {
         }
     }
     println!("{}",MEMORY_MAX);
+}
+ 
+u16 fn sign_extend(u16 x, u16 bit_count)
+{
+    if((x >> (bit_count - 1)))
+    {
+        x |= (0xFFFF << bit_count);
+    }
+    return;
+}
+
+fn update_flags(u16 r)
+{
+    if (reg[r] == 0)
+    {
+        reg[R_COND] = FL_ZRO;
+    }
+    else if (reg[r] >> 15) /* a 1 in the left-most bit indicates negative */
+    {
+        reg[R_COND] = FL_NEG;
+    }
+    else
+    {
+        reg[R_COND] = FL_POS;
+    }
 }
