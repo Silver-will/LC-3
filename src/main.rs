@@ -53,14 +53,15 @@ enum COND {
     FL_NEG = 1 << 2, /* N */
 }
 
-enum IpAddrKind {
-    V4,
-    V6,
-    }
-    
+enum MEM
+{
+    MR_KBSR = 0xFE00, /* keyboard status */
+    MR_KBDR = 0xFE02  /* keyboard data */
+}
 
 fn main() {
 
+    
     let mut vm_image_path = String::new();
     io::stdin().read_line(&mut vm_image_path).
     expect("Failed to read line");
@@ -240,7 +241,15 @@ fn main() {
                 }
                 TRAP_CODES::TRAP_PUTS =>
                 {
-                    
+                    let ptr  = &memory[reg[REG::R_R0]] as *const u16;
+                    let a = 1;
+                    let puts = "";
+                    while !ptr.add(a).is_null(){
+                    let b = *ptr.add(a) as char;
+                    puts = concat!(puts,b);
+                    a += 1;
+                    }
+                    println!("{}",puts);
                 }
                 TRAP_CODES::TRAP_IN =>
                 {
@@ -253,9 +262,28 @@ fn main() {
                     reg[REG::R_R0] = input_char as u16;
                     update_flags(u16, REG::R_R0);
                 }
+
                 TRAP_CODES::TRAP_PUTSP =>
                 {
-                    
+                    let ptr  = &memory[reg[REG::R_R0]] as *const u16;
+                    let a = 1;
+                    let puts = "";
+                    while !ptr.add(a).is_null(){
+                         let c = ptr.add(a);
+                         let char1 = (*c & 0xFF) as char;
+                         puts = concat!(puts,char1);
+                         
+
+                         let char2 = ((*c) >> 8) as char;
+                         if(char2) 
+                         {
+                            puts = concat!(puts,char2);
+                         }
+                        
+                         a += 1;
+                    }
+
+                    println!("{}",puts);
                 }
 
                 TRAP_CODES::TRAP_HALT =>
@@ -276,7 +304,7 @@ fn main() {
     println!("{}",MEMORY_MAX);
 }
  
-u16 fn sign_extend(u16 x, u16 bit_count)
+fn sign_extend(u16 x, u16 bit_count) -> u16
 {
     if((x >> (bit_count - 1)) & 1)
     {
@@ -299,4 +327,14 @@ fn update_flags(u16 r)
     {
         reg[R_COND] = FL_POS;
     }
+}
+
+fn read_image_file()
+{
+
+}
+
+fn swap_16(u16 x) -> u16
+{
+    return (x << 8) | (x >> 8);
 }
